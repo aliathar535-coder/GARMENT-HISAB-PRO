@@ -1,3 +1,4 @@
+
 package com.garment.hisabpro
 
 import android.app.Activity
@@ -246,7 +247,12 @@ class MainActivity : Activity() {
             button("इस एंट्री में फोटो जोड़ें") { photoEntryIndex = ix; pickPhotos() }
             button("यह एंट्री हटाएँ") {
                 AlertDialog.Builder(this).setMessage("यह एंट्री हटानी है?")
-                    .setPositiveButton("हटाएँ") { _, _ -> entries.remove(ix); saveData(); showHistory() }
+                    .setPositiveButton("हटाएँ") { _, _ ->
+                        deleteEntryPhotos(entries.optJSONObject(ix))
+                        entries.remove(ix)
+                        saveData()
+                        showHistory()
+                    }
                     .setNegativeButton("रद्द", null).show()
             }
         }
@@ -254,13 +260,63 @@ class MainActivity : Activity() {
         for (i in expenses.length() - 1 downTo 0) {
             val e = expenses.optJSONObject(i) ?: continue
             label(root, "${e.optString("label")} • ${money(e.optDouble("amount"))} • ${e.optString("date")}")
+            val ix = i
+            button("खर्च बदलें") { editMoneyRecord(false, ix) }
+            button("खर्च हटाएँ") { deleteMoneyRecord(false, ix) }
         }
         label(root, "प्राप्त रकम / एडवांस", 18f, green)
         for (i in payments.length() - 1 downTo 0) {
             val p = payments.optJSONObject(i) ?: continue
             label(root, "${p.optString("label")} • ${money(p.optDouble("amount"))} • ${p.optString("date")}")
+            val ix = i
+            button("प्राप्त रकम बदलें") { editMoneyRecord(true, ix) }
+            button("प्राप्त रकम हटाएँ") { deleteMoneyRecord(true, ix) }
         }
         button("डैशबोर्ड") { showDashboard() }
+    }
+
+    private fun editMoneyRecord(isPayment: Boolean, index: Int) {
+        val target = if (isPayment) payments else expenses
+        val old = target.optJSONObject(index) ?: return
+        val title = if (isPayment) "प्राप्त रकम / एडवांस बदलें" else "खर्च बदलें"
+        val box = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(20, 8, 20, 4) }
+        val description = input("विवरण / कैटेगरी").apply { setText(old.optString("label")) }
+        val amount = input("रकम", true).apply { setText(old.optDouble("amount").toString()) }
+        box.addView(description)
+        box.addView(amount)
+        AlertDialog.Builder(this).setTitle(title).setView(box)
+            .setPositiveButton("सेव") { _, _ ->
+                val value = amount.text.toString().toDoubleOrNull()
+                if (value == null || value <= 0) {
+                    toast("सही रकम भरें")
+                    return@setPositiveButton
+                }
+                target.put(index, JSONObject()
+                    .put("label", description.text.toString().ifBlank { title })
+                    .put("amount", value)
+                    .put("date", old.optString("date", now())))
+                saveData()
+                showHistory()
+                toast("बदलाव सेव हो गया")
+            }.setNegativeButton("रद्द", null).show()
+    }
+
+    private fun deleteMoneyRecord(isPayment: Boolean, index: Int) {
+        val target = if (isPayment) payments else expenses
+        AlertDialog.Builder(this).setMessage("क्या यह रिकॉर्ड हटाना है?")
+            .setPositiveButton("हटाएँ") { _, _ ->
+                target.remove(index)
+                saveData()
+                showHistory()
+                toast("रिकॉर्ड हटा दिया गया")
+            }.setNegativeButton("रद्द", null).show()
+    }
+
+    private fun deleteEntryPhotos(entry: JSONObject?) {
+        val photos = entry?.optJSONArray("photos") ?: return
+        for (i in 0 until photos.length()) {
+            PhotoManager.deletePhoto(photos.optString(i))
+        }
     }
 
     private fun pickPhotos() {
@@ -336,6 +392,9 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this).setTitle("पुष्टि करें")
             .setMessage("क्या पूरा हिसाब और पीस सूची शून्य करनी है? यह वापस नहीं आएगा।")
             .setPositiveButton("हाँ, शून्य करें") { _, _ ->
+                for (i in 0 until entries.length()) {
+                    deleteEntryPhotos(entries.optJSONObject(i))
+                }
                 listOf(pieces, entries, expenses, payments).forEach { a ->
                     while (a.length() > 0) a.remove(a.length() - 1)
                 }
