@@ -533,10 +533,10 @@ class MainActivity : Activity() {
                 "क्या पूरा हिसाब और पीस सूची शून्य करनी है? यह वापस नहीं आएगा।"
             )
             .setPositiveButton("हाँ, शून्य करें") { _, _ ->
-                pieces.clear()
-                entries.clear()
-                expenses.clear()
-                payments.clear()
+                while (pieces.length() > 0) pieces.remove(pieces.length() - 1)
+while (entries.length() > 0) entries.remove(entries.length() - 1)
+while (expenses.length() > 0) expenses.remove(expenses.length() - 1)
+while (payments.length() > 0) payments.remove(payments.length() - 1)
                 saveData()
                 showDashboard()
             }
