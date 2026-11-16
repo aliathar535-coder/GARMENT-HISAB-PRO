@@ -50,59 +50,83 @@ object DesignManager {
         ClockStyle("Diamond", listOf(c("#33465B"), c("#B8E5FF")), c("#FFFFFF"), true)
     )
 
-    fun saveName(context: Context, name: String) {
+    private fun prefs(context: Context) =
         context.getSharedPreferences("garment_design", Context.MODE_PRIVATE)
-            .edit().putString("owner_name", name).apply()
+
+    fun saveName(context: Context, name: String) {
+        prefs(context).edit().putString("owner_name", name).apply()
     }
 
-    fun getName(context: Context): String {
-        return context.getSharedPreferences("garment_design", Context.MODE_PRIVATE)
-            .getString("owner_name", "आपका नाम") ?: "आपका नाम"
-    }
+    fun getName(context: Context): String =
+        prefs(context).getString("owner_name", "आपका नाम") ?: "आपका नाम"
 
     fun saveClockStyle(context: Context, index: Int) {
-        context.getSharedPreferences("garment_design", Context.MODE_PRIVATE)
-            .edit().putInt("clock_style", index.coerceIn(0, 29)).apply()
+        prefs(context).edit().putInt("clock_style", index.coerceIn(0, clockStyles.lastIndex)).apply()
     }
 
     fun getClockStyle(context: Context): ClockStyle {
-        val index = context.getSharedPreferences("garment_design", Context.MODE_PRIVATE)
-            .getInt("clock_style", 0).coerceIn(0, 29)
+        val index = prefs(context).getInt("clock_style", 0)
+            .coerceIn(0, clockStyles.lastIndex)
         return clockStyles[index]
     }
 
     fun saveThreeD(context: Context, enabled: Boolean) {
-        context.getSharedPreferences("garment_design", Context.MODE_PRIVATE)
-            .edit().putBoolean("three_d", enabled).apply()
+        prefs(context).edit().putBoolean("three_d", enabled).apply()
     }
 
-    fun isThreeDEnabled(context: Context): Boolean {
-        return context.getSharedPreferences("garment_design", Context.MODE_PRIVATE)
-            .getBoolean("three_d", true)
-    }
+    fun isThreeDEnabled(context: Context): Boolean =
+        prefs(context).getBoolean("three_d", true)
 
     fun saveCustomTextColor(context: Context, color: Int) {
-        context.getSharedPreferences("garment_design", Context.MODE_PRIVATE)
-            .edit().putInt("custom_text_color", color).apply()
+        prefs(context).edit().putInt("custom_text_color", color).apply()
     }
 
-    fun getTextColor(context: Context): Int {
-        return context.getSharedPreferences("garment_design", Context.MODE_PRIVATE)
-            .getInt("custom_text_color", Color.WHITE)
+    fun getTextColor(context: Context): Int =
+        prefs(context).getInt("custom_text_color", Color.WHITE)
+
+    fun saveFont(context: Context, fontName: String) {
+        prefs(context).edit().putString("font_name", fontName).apply()
     }
 
-    fun gradient(colors: List<Int>, radius: Float = 24f): GradientDrawable {
-        return GradientDrawable(
+    fun getFont(context: Context): String =
+        prefs(context).getString("font_name", "sans-serif-black") ?: "sans-serif-black"
+
+    fun saveTextSize(context: Context, size: Float) {
+        prefs(context).edit().putFloat("text_size", size.coerceIn(10f, 60f)).apply()
+    }
+
+    fun getTextSize(context: Context): Float =
+        prefs(context).getFloat("text_size", 24f)
+
+    fun saveGradientColors(context: Context, colors: List<Int>) {
+        val safeColors = colors.take(5).ifEmpty { listOf(Color.BLUE, Color.CYAN) }
+        prefs(context).edit()
+            .putString("gradient_colors", safeColors.joinToString(",") { it.toString() })
+            .apply()
+    }
+
+    fun getGradientColors(context: Context): List<Int> {
+        val raw = prefs(context).getString("gradient_colors", null)
+            ?: return listOf(c("#0066FF"), c("#00D9FF"))
+        return raw.split(",").mapNotNull { it.toIntOrNull() }.take(5)
+            .ifEmpty { listOf(Color.BLUE, Color.CYAN) }
+    }
+
+    fun gradient(colors: List<Int>, radius: Float = 24f): GradientDrawable =
+        GradientDrawable(
             GradientDrawable.Orientation.TL_BR,
             colors.toIntArray()
         ).apply {
             cornerRadius = radius
             setStroke(2, Color.argb(180, 90, 210, 255))
         }
-    }
 
-    fun textTypeface(bold: Boolean = true): Typeface {
-        return if (bold) Typeface.create("sans-serif-black", Typeface.BOLD)
-        else Typeface.create("sans-serif", Typeface.NORMAL)
-    }
+    fun textTypeface(bold: Boolean = true): Typeface =
+        Typeface.create(
+            getFontFamily(bold),
+            if (bold) Typeface.BOLD else Typeface.NORMAL
+        )
+
+    private fun getFontFamily(bold: Boolean): String =
+        if (bold) "sans-serif-black" else "sans-serif"
 }
